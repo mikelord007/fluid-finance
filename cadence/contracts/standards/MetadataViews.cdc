@@ -1,5 +1,5 @@
-import FungibleToken from "FungibleToken"
-import NonFungibleToken from "NonFungibleToken"
+import FungibleToken from "./FungibleToken.cdc"
+import NonFungibleToken from "./NonFungibleToken.cdc"
 
 /// This contract implements the metadata standard proposed
 /// in FLIP-0636.

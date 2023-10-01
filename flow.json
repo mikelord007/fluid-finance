@@ -1,45 +1,56 @@
 {
 	"contracts": {
-		"NonFungibleToken": {
+		"ExampleNFT": {
+			"source": "",
+			"aliases": {
+				"emulator": "f8d6e0586b0a20c7"
+			}
+		},
+		"ExampleToken": "cadence/contracts/stakingToken.cdc",
+		"FUSD": {
+			"source": "",
 			"aliases": {
 				"emulator": "f8d6e0586b0a20c7"
 			}
 		},
 		"FlowToken": {
+			"source": "",
 			"aliases": {
 				"emulator": "0ae53cb6e3f42a79"
 			}
 		},
 		"FungibleToken": {
+			"source": "cadence/contracts/standards/FungibleToken.cdc",
 			"aliases": {
 				"emulator": "ee82856bf20e2aa6"
 			}
 		},
-		"FUSD": {
-			"aliases": {
-				"emulator": "f8d6e0586b0a20c7"
-			}
-		},
+		"FungibleTokenMetadataViews": "cadence/contracts/standards/FungibleTokenMetadataViews.cdc",
 		"MetadataViews": {
-			"aliases": {
-				"emulator": "f8d6e0586b0a20c7"
-			}
-		},
-		"ExampleNFT": {
-			"aliases": {
-				"emulator": "f8d6e0586b0a20c7"
-			}
-		},
-		"NFTStorefrontV2": {
+			"source": "cadence/contracts/standards/MetadataViews.cdc",
 			"aliases": {
 				"emulator": "f8d6e0586b0a20c7"
 			}
 		},
 		"NFTStorefront": {
+			"source": "",
 			"aliases": {
 				"emulator": "f8d6e0586b0a20c7"
 			}
-		}
+		},
+		"NFTStorefrontV2": {
+			"source": "",
+			"aliases": {
+				"emulator": "f8d6e0586b0a20c7"
+			}
+		},
+		"NonFungibleToken": {
+			"source": "cadence/contracts/standards/NonFungibleToken.cdc",
+			"aliases": {
+				"emulator": "f8d6e0586b0a20c7"
+			}
+		},
+		"OLMAccounting": "cadence/contracts/OLMAccounting.cdc"
 	},
 	"networks": {
 		"emulator": "127.0.0.1:3569",
@@ -47,9 +58,28 @@
 		"testnet": "access.devnet.nodes.onflow.org:9000"
 	},
 	"accounts": {
+		"default": {
+			"address": "e03daebed8ca0615",
+			"key": "6d12eebfef9866c9b6fa92b97c6e705c26a1785b1e7944da701fc545a51d4673"
+		},
 		"emulator-account": {
 			"address": "f8d6e0586b0a20c7",
 			"key": "6d12eebfef9866c9b6fa92b97c6e705c26a1785b1e7944da701fc545a51d4673"
+		},
+		"standards": {
+			"address": "120e725050340cab",
+			"key": "6d12eebfef9866c9b6fa92b97c6e705c26a1785b1e7944da701fc545a51d4673"
+		}
+	},
+	"deployments": {
+		"emulator": {
+			"default": [
+				"OLMAccounting",
+				"ExampleToken"
+			],
+			"standards": [
+				"FungibleTokenMetadataViews"
+			]
 		}
 	}
 }
