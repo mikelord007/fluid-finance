@@ -1,8 +1,8 @@
-import FungibleTokenOption from "./standards/FungibleTokenOption.cdc"
-import FungibleToken from "./standards/FungibleToken.cdc"
-import ExampleToken from "./standards/ExampleToken.cdc"
-import MetadataViews from "./standards/MetadataViews.cdc"
-import FungibleTokenOptionMetadataViews from "./standards/FungibleTokenOptionMetadataViews.cdc"
+import FungibleTokenOption from "../standards/FungibleTokenOption.cdc"
+import FungibleToken from "../standards/FungibleToken.cdc"
+import ExampleToken from "../standards/ExampleToken.cdc"
+import MetadataViews from "../standards/MetadataViews.cdc"
+import FungibleTokenOptionMetadataViews from "../standards/FungibleTokenOptionMetadataViews.cdc"
 
 pub contract OptionToken: FungibleTokenOption {
 

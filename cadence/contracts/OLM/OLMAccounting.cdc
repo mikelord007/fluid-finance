@@ -1,4 +1,4 @@
-import FungibleToken from "./standards/FungibleToken.cdc"
+import FungibleToken from "../standards/FungibleToken.cdc"
 import OptionToken from "./OptionToken.cdc"
 
 pub contract OLMAccounting {
