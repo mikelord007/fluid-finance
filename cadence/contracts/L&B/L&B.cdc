@@ -1,14 +1,14 @@
 import FungibleToken from "../standards/FungibleToken.cdc"
 
 pub contract Lending_Borrow {
-    pub var debtLimitPerTicket: UFix64
+    pub var borrowLimitPerBucket: UFix64 // Max Percentage of Debt a bucket can have, over which assets will be liquidated 
     pub let supplyTokensLimit : {Type : UFix64} // Type of Token : Hard Upper limit on amount of tokens
     pub let borrowTokensLimit : {Type : UFix64} // Type of Token : Percentage of max borrowable from pool
     pub let suppliedTokens: {UInt64: {Type: UFix64}} // UUID of liquidity Bucket : {Type of Token : Amount of supply}
     pub let borrowedTokens: {UInt64: {Type: UFix64}} // UUID of liquidity Bucket : {Type of Token : Amount of debt}
 
     pub let tokenVaults: @{Type: FungibleToken.Vault}
-    pub let fungibleTokenRef: {Type: FungibleToken}
+    pub let fungibleTokenContracts: {Type: FungibleToken}
  
     pub resource liquidityBucket {
         pub let suppliedTokens : &{Type: UFix64}?
@@ -43,13 +43,30 @@ pub contract Lending_Borrow {
     }
 
     pub resource Administrator {
-        pub fun modifyTicketDebtLimit() {}
+        pub fun modifyBorrowLimitPerBucket(newLimit : UFix64) {
+            Lending_Borrow.borrowLimitPerBucket = newLimit
+        }
 
-        pub fun setupBorrowTokens() {}
+        pub fun modifySupplyTokensLimit(supplyToken: Type, limit: UFix64) {
+            Lending_Borrow.supplyTokensLimit[supplyToken] = limit
+        }
 
-        pub fun setupSupplyTokens() {}
+        pub fun modifyBorrowTokensLimit(borrowToken: Type, limit: UFix64) {
+            Lending_Borrow.supplyTokensLimit[borrowToken] = limit
+        }
 
-        pub fun liquidateUnderCollateralizedPositions() {}
+        pub fun liquidateUnderCollateralizedBuckets() {
+            Lending_Borrow.borrowedTokens.forEachKey(fun (key: UInt64): Bool {
+                let underCollateralized = Lending_Borrow.checkIfBucketIsUnderCollateralized(bucket: key)
+
+                if(underCollateralized) {
+                    Lending_Borrow.suppliedTokens.insert(key: key, {})
+                    Lending_Borrow.borrowedTokens.insert(key: key, {})
+                }
+
+                return true
+            })
+        }
     }
 
     pub fun supply(supplyTokenVault: @FungibleToken.Vault, existingLiquidityBucket: @liquidityBucket?): @liquidityBucket {
@@ -59,7 +76,7 @@ pub contract Lending_Borrow {
             supplyTokenVault.balance >= 0.0 : "Are you joking bruv"
         }
         post {
-            self.totalSupplied(tokenVaultType) <= self.supplyTokensLimit[tokenVaultType]! : "supply exceeds limit"
+            self.totalSupplied(token: tokenVaultType) <= self.supplyTokensLimit[tokenVaultType]! : "supply exceeds limit"
         }
 
         let tokenVaultType = supplyTokenVault.getType()
@@ -97,7 +114,7 @@ pub contract Lending_Borrow {
             amount >= 0.0 : "Are you joking bruv"
         }
         post {
-            (self.borrowedTokens[bucket.uuid]![token]! * 100.0) / self.totalBorrowed(token) <= self.borrowTokensLimit[token]! : "borrow exceeds limit"
+            (self.borrowedTokens[bucket.uuid]![token]! * 100.0) / self.totalBorrowed(token: token) <= self.borrowTokensLimit[token]! : "borrow exceeds limit"
         }
 
         bucket.borrowTokens(token: token, amount: amount) // checks if borrowing doesn't leave bucket undercollateralized
@@ -120,15 +137,58 @@ pub contract Lending_Borrow {
     }
 
     pub fun checkIfBucketIsUnderCollateralized(bucket: UInt64) : Bool {
-        return false
+        var totalSupply = 0.0
+        var totalDebt = 0.0
+
+        self.suppliedTokens[bucket]!.forEachKey(fun (key: Type): Bool {
+            totalSupply = self.suppliedTokens[bucket]![key]! + totalSupply
+            return true
+        })
+
+        self.borrowedTokens[bucket]!.forEachKey(fun (key: Type): Bool {
+            totalDebt = self.borrowedTokens[bucket]![key]! + totalDebt
+            return true
+        })
+
+        return (totalDebt * 100.0) / totalSupply <= self.borrowLimitPerBucket
     }
 
     pub fun fetchPriceFromOracle(type: Type): UFix64 {
         return 1.0 // assumption of fetching from oracle
     }
 
+    pub fun totalSupplied(token: Type): UFix64 {
+        var totalSupplied = 0.0
+
+        Lending_Borrow.suppliedTokens.forEachKey(fun (bucket: UInt64): Bool {
+            
+            if(Lending_Borrow.suppliedTokens[bucket]![token] != nil) {
+                totalSupplied = totalSupplied + self.fetchPriceFromOracle(type: token) * Lending_Borrow.suppliedTokens[bucket]![token]!
+            }
+
+            return true
+        })
+
+        return totalSupplied 
+    }
+
+    pub fun totalBorrowed(token: Type): UFix64 {
+        var totalBorrowed = 0.0
+
+        Lending_Borrow.borrowedTokens.forEachKey(fun (bucket: UInt64): Bool {
+            
+            if(Lending_Borrow.borrowedTokens[bucket]![token] != nil) {
+                totalBorrowed = totalBorrowed + self.fetchPriceFromOracle(type: token) * Lending_Borrow.borrowedTokens[bucket]![token]!
+            }
+            
+            return true
+        })
+
+        return totalBorrowed
+    }
+
     access(contract) fun depositToVault(token: Type, supplyVault: @FungibleToken.Vault) {
-        var tempVault: @FungibleToken.Vault? <- self.fungibleTokenRef[token]!.createEmptyVault()
+        var tempVault: @FungibleToken.Vault? <- self.fungibleTokenContracts[token]!.createEmptyVault()
         tempVault <-> self.tokenVaults[token]
         var finalVault <- tempVault!
         finalVault.deposit(from: <- supplyVault)
@@ -138,7 +198,7 @@ pub contract Lending_Borrow {
     }
 
     access(contract) fun withdrawFromVault(token: Type, amount: UFix64): @FungibleToken.Vault {
-        var tempVault: @FungibleToken.Vault? <- self.fungibleTokenRef[token]!.createEmptyVault()
+        var tempVault: @FungibleToken.Vault? <- self.fungibleTokenContracts[token]!.createEmptyVault()
         tempVault <-> self.tokenVaults[token]
         var finalVault <- tempVault!
         let returnVault <- finalVault.withdraw(amount: amount)
@@ -150,13 +210,13 @@ pub contract Lending_Borrow {
     }
 
     init() {
-        self.debtLimitPerTicket = 80.00
+        self.borrowLimitPerBucket = 80.00
         self.supplyTokensLimit = {}
         self.borrowTokensLimit = {}
         self.suppliedTokens = {}
         self.borrowedTokens = {}
         self.tokenVaults <- {}
-        self.fungibleTokenRef = {}
+        self.fungibleTokenContracts = {}
     }
 
 }
