@@ -1,20 +1,22 @@
 import FungibleToken from "../standards/FungibleToken.cdc"
+import ExampleToken from "../standards/ExampleToken.cdc"
 import OptionToken from "./OptionToken.cdc"
 
 pub contract OLMAccounting {
  
     pub event NewEpoch(epoch_: UInt32, optionToken_: String)
 
-    pub let stakedTokenVaultType: Type 
-    pub let payoutTokenVaultType: Type 
-    pub let buyWithTokenVaultType: Type
+    pub var stakedTokenVaultType: String? 
+    pub var payoutTokenVaultType: String? 
+    pub var buyWithTokenVaultType: String?
     pub let stakeAccountingKeyStoragePath: StoragePath
     pub let AdminStoragePath: StoragePath
+    pub var timeToExpireOtokens: UFix64
  
-    pub let stakeVault: @FungibleToken.Vault
-    pub let payoutVault: @FungibleToken.Vault
+    pub var stakeVault: @FungibleToken.Vault?
+    pub var payoutVault: @FungibleToken.Vault?
 
-    pub let optionMinter : @OptionToken.Minter
+    pub var optionMinter : @OptionToken.Minter?
 
     pub var rewardRate: UInt64
 
@@ -37,71 +39,115 @@ pub contract OLMAccounting {
         pub fun setRewardRate(newRate: UInt64) {
             OLMAccounting.rewardRate = newRate
         }
-    }
 
-    init(stakedTokenvaultType_: Type, payoutTokenVaultType_: Type, buyWithTokenVaultType_: Type,
+        pub fun initialize(stakedTokenvaultType_: String, payoutTokenVaultType_: String, buyWithTokenVaultType_: String,
          stakedTokenContract_: &FungibleToken, payoutTokenContract_: &FungibleToken, rewardRate_: UInt64,
-         optionMinter_: @OptionToken.Minter) {
+         optionMinter_: @OptionToken.Minter, timeToExpire: UFix64) {
 
-        self.AdminStoragePath = /storage/OLMAccountingAdmin
+            OLMAccounting.stakedTokenVaultType = stakedTokenvaultType_
+            OLMAccounting.payoutTokenVaultType = payoutTokenVaultType_
+            OLMAccounting.buyWithTokenVaultType = buyWithTokenVaultType_
+            OLMAccounting.rewardRate = rewardRate_
+            OLMAccounting.optionMinter <-! optionMinter_
+            OLMAccounting.timeToExpireOtokens = timeToExpire
 
-        self.stakedTokenVaultType = stakedTokenvaultType_
-        self.payoutTokenVaultType = payoutTokenVaultType_
-        self.buyWithTokenVaultType = buyWithTokenVaultType_
-        self.stakeAccountingKeyStoragePath = /storage/stakeAccountingKey
-        self.rewardRate = rewardRate_
-        self.optionMinter <- optionMinter_
+            var tempVault: @FungibleToken.Vault <- stakedTokenContract_.createEmptyVault()
+            assert(tempVault.getType().identifier == stakedTokenvaultType_, message: "Wrong Staked Token Vault Type")
+            OLMAccounting.stakeVault <-! tempVault
 
-        var tempVault: @FungibleToken.Vault <- stakedTokenContract_.createEmptyVault()
-        assert(tempVault.getType() == stakedTokenvaultType_, message: "Wrong Staked Token Vault Type")
-        self.stakeVault <- tempVault
-
-        let tempPayoutVault <- payoutTokenContract_.createEmptyVault()
-        assert(tempPayoutVault.getType() == stakedTokenvaultType_, message: "Wrong Payout Token Vault Type")
-        self.payoutVault <- tempPayoutVault
-
-        let admin <- create Administrator()
-        self.account.save(<-admin, to: self.AdminStoragePath)
+            let tempPayoutVault <- payoutTokenContract_.createEmptyVault()
+            assert(tempPayoutVault.getType().identifier == stakedTokenvaultType_, message: "Wrong Payout Token Vault Type")
+            OLMAccounting.payoutVault <-! tempPayoutVault
+        }
     }
 
-    pub fun depositPayout(payoutVault: @FungibleToken.Vault) {
+    pub fun depositPayout(payoutVault: @FungibleToken.Vault)  {
         pre {
-            payoutVault.getType() == self.payoutTokenVaultType : "Wrong Payout Token Vault Type"
+            payoutVault.getType().identifier == self.payoutTokenVaultType : "Wrong Payout Token Vault Type"
         }
 
-        self.payoutVault.deposit(from: <- payoutVault)
+        let tempVault: @FungibleToken.Vault? <- self.payoutVault <- nil
+
+        let selfVault <- tempVault!
+        
+        selfVault.deposit(from: <- payoutVault)
+        
+        self.payoutVault <-! selfVault
+        
     }
 
     pub fun stake(stakeTokenVault: @FungibleToken.Vault): @stakeAccountingKey {
         pre {
-            stakeTokenVault.getType() == self.stakedTokenVaultType : "Wrong Vault Sent"
+            stakeTokenVault.getType().identifier == self.stakedTokenVaultType : "Wrong Vault Sent"
             stakeTokenVault.balance == 0.0 : "Bruh"
         }
 
         let balance = stakeTokenVault.balance
-        self.stakeVault.deposit(from: <- stakeTokenVault)
+        let tempVault <- self.stakeVault <- nil
+        let stakeVault <- tempVault!
+        stakeVault.deposit(from: <- stakeTokenVault)
+        self.stakeVault <-! stakeVault
 
         return <- create stakeAccountingKey(amount: balance)
     }
 
     pub fun unstake(stakeKey: @stakeAccountingKey): @FungibleToken.Vault {
+        let tempVault <- self.stakeVault <- nil
+        let stakedVault <- tempVault!
+        let returnVault <- stakedVault.withdraw(amount: stakeKey.amount)
         
-        let stakedVault <- self.stakeVault.withdraw(amount: stakeKey.amount)
+        self.stakeVault <-! stakedVault
         destroy stakeKey
 
-        return <- stakedVault
+        return <- returnVault
     }
 
     pub fun claimRewardsTillNow(stakeKey: &stakeAccountingKey): @OptionToken.Vault {
         let time = UInt64(getCurrentBlock().timestamp - stakeKey.lastClaimedReward)
-
         let rewardAmount = time * UInt64(stakeKey.amount) * self.rewardRate
+        
+        let tempPayoutVault <- self.payoutVault <- nil
+        let payoutVault <- tempPayoutVault!
+        let withdrawenVault <- payoutVault.withdraw(amount: UFix64(rewardAmount))
+        self.payoutVault <-! payoutVault
 
-        let oTokens <- self.optionMinter.mintTokens(amount: UFix64(rewardAmount), payoutVault: <- self.payoutVault.withdraw(amount: rewardAmount))
+        let tempMinter <- self.optionMinter <- nil
+        let minter <- tempMinter!
 
-        stakeKey.setLastClaimedReward(time: getCurrentBlock().timestamp)
+        let amountToBuyWith = self.fetchDiscountedPriceFromOracle(type: self.payoutTokenVaultType!)
+        let totalAmount = UFix64(rewardAmount) * amountToBuyWith
+
+        let expiryTimestamp = getCurrentBlock().timestamp + self.timeToExpireOtokens
+
+        let oTokens <- minter.mintTokens(amount: UFix64(rewardAmount), payoutVault: <- (withdrawenVault as! @ExampleToken.Vault),
+        buyWithTokenType: self.buyWithTokenVaultType!, amountOfBuyWith: totalAmount, expiryTime: expiryTimestamp)
+
+        self.optionMinter <-! minter
+        stakeKey.setLastClaimedReward(time: getCurrentBlock().timestamp) 
 
         return <- oTokens
+    }
+
+    pub fun fetchDiscountedPriceFromOracle(type: String): UFix64 {
+        return 100.0 // assume call to oracle
+    }
+
+        init() {
+
+        self.AdminStoragePath = /storage/OLMAccountingAdmin
+
+        self.stakedTokenVaultType = nil
+        self.payoutTokenVaultType = nil
+        self.buyWithTokenVaultType = nil
+        self.stakeAccountingKeyStoragePath = /storage/stakeAccountingKey
+        self.rewardRate = 0
+        self.optionMinter <- nil
+        self.stakeVault <- nil
+        self.payoutVault <- nil
+        self.timeToExpireOtokens = 0.0
+
+        let admin <- create Administrator()
+        self.account.save(<-admin, to: self.AdminStoragePath)
     }
 
 }

@@ -155,7 +155,7 @@ pub contract interface FungibleTokenOption {
                 self.balance == balance:
                     "Balance must be initialized to the initial balance"
 
-                payoutVault.balance == balance:
+                self.payoutVault.balance == self.balance:
                     "payoutVault must have same balance"
             }
         }
