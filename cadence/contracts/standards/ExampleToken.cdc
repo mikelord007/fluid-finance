@@ -145,7 +145,7 @@ pub contract ExampleToken: FungibleToken {
                         receiverLinkedType: Type<&ExampleToken.Vault{FungibleToken.Receiver}>(),
                         metadataLinkedType: Type<&ExampleToken.Vault{FungibleToken.Balance, MetadataViews.Resolver}>(),
                         providerLinkedType: Type<&ExampleToken.Vault{FungibleToken.Provider}>(),
-                        createEmptyVaultFunction: (fun (): @ExampleToken.Vault {
+                        createEmptyVaultFunction: (fun (): @FungibleToken.Vault {
                             return <-ExampleToken.createEmptyVault()
                         })
                     )
@@ -167,74 +167,10 @@ pub contract ExampleToken: FungibleToken {
         return <-create Vault(balance: 0.0)
     }
 
-    pub resource Administrator {
-
-        /// Function that creates and returns a new minter resource
-        ///
-        /// @param allowedAmount: The maximum quantity of tokens that the minter could create
-        /// @return The Minter resource that would allow to mint tokens
-        ///
-        pub fun createNewMinter(allowedAmount: UFix64): @Minter {
-            emit MinterCreated(allowedAmount: allowedAmount)
-            return <-create Minter(allowedAmount: allowedAmount)
-        }
-
-        /// Function that creates and returns a new burner resource
-        ///
-        /// @return The Burner resource
-        ///
-        pub fun createNewBurner(): @Burner {
-            emit BurnerCreated()
-            return <-create Burner()
-        }
-    }
-
-    /// Resource object that token admin accounts can hold to mint new tokens.
-    ///
-    pub resource Minter {
-
-        /// The amount of tokens that the minter is allowed to mint
-        pub var allowedAmount: UFix64
-
-        /// Function that mints new tokens, adds them to the total supply,
-        /// and returns them to the calling context.
-        ///
-        /// @param amount: The quantity of tokens to mint
-        /// @return The Vault resource containing the minted tokens
-        ///
-        pub fun mintTokens(amount: UFix64): @ExampleToken.Vault {
-            pre {
-                amount > 0.0: "Amount minted must be greater than zero"
-                amount <= self.allowedAmount: "Amount minted must be less than the allowed amount"
-            }
-            ExampleToken.totalSupply = ExampleToken.totalSupply + amount
-            self.allowedAmount = self.allowedAmount - amount
-            emit TokensMinted(amount: amount)
-            return <-create Vault(balance: amount)
-        }
-
-        init(allowedAmount: UFix64) {
-            self.allowedAmount = allowedAmount
-        }
-    }
-
-    /// Resource object that token admin accounts can hold to burn tokens.
-    ///
-    pub resource Burner {
-
-        /// Function that destroys a Vault instance, effectively burning the tokens.
-        ///
-        /// Note: the burned tokens are automatically subtracted from the
-        /// total supply in the Vault destructor.
-        ///
-        /// @param from: The Vault resource containing the tokens to burn
-        ///
-        pub fun burnTokens(from: @FungibleToken.Vault) {
-            let vault <- from as! @ExampleToken.Vault
-            let amount = vault.balance
-            destroy vault
-            emit TokensBurned(amount: amount)
-        }
+    pub fun mintTokens(amount: UFix64): @ExampleToken.Vault {
+        ExampleToken.totalSupply = ExampleToken.totalSupply + amount
+        emit TokensMinted(amount: amount)
+        return <-create Vault(balance: amount)
     }
 
     init() {
@@ -261,9 +197,6 @@ pub contract ExampleToken: FungibleToken {
             self.VaultPublicPath,
             target: self.VaultStoragePath
         )
-
-        let admin <- create Administrator()
-        self.account.save(<-admin, to: self.AdminStoragePath)
 
         // Emit an event that shows that the contract was initialized
         emit TokensInitialized(initialSupply: self.totalSupply)
