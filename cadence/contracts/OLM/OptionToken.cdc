@@ -37,6 +37,9 @@ pub contract OptionToken: FungibleToken {
     /// The event that is emitted when a new burner resource is created
     pub event BurnerCreated()
 
+    pub resource interface oTokenReadData {
+        pub var expiryTimeStamp: UFix64
+    }
     /// Each user stores an instance of only the Vault in their storage
     /// The functions in the Vault and governed by the pre and post conditions
     /// in FungibleToken when they are called.
@@ -47,7 +50,7 @@ pub contract OptionToken: FungibleToken {
     /// out of thin air. A special Minter resource needs to be defined to mint
     /// new tokens.
     ///
-    pub resource Vault: FungibleToken.Provider, FungibleToken.Receiver, FungibleToken.Balance, MetadataViews.Resolver {
+    pub resource Vault: FungibleToken.Provider, FungibleToken.Receiver, FungibleToken.Balance, MetadataViews.Resolver, oTokenReadData {
 
         /// The total balance of this vault
         pub var balance: UFix64

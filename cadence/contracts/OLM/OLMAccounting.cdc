@@ -10,6 +10,7 @@ pub contract OLMAccounting {
     pub var payoutTokenVaultType: String? 
     pub var buyWithTokenVaultType: String?
     pub let stakeAccountingKeyStoragePath: StoragePath
+    pub let stakeAccountingKeyPublicPath: PublicPath
     pub let AdminStoragePath: StoragePath
     pub var timeToExpireOtokens: UFix64
  
@@ -20,8 +21,11 @@ pub contract OLMAccounting {
 
     pub var rewardRate: UInt64
 
+    pub resource interface readStakeKeyDetails {
+        pub let amount: UFix64
+    }
     //stakeAccountingKey can be used to unstake or claim rewards
-    pub resource stakeAccountingKey {
+    pub resource stakeAccountingKey: readStakeKeyDetails {
         pub let amount: UFix64
         pub var lastClaimedReward: UFix64
 
@@ -132,7 +136,7 @@ pub contract OLMAccounting {
         return 100.0 // assume call to oracle
     }
 
-        init() {
+    init() {
 
         self.AdminStoragePath = /storage/OLMAccountingAdmin
 
@@ -140,6 +144,7 @@ pub contract OLMAccounting {
         self.payoutTokenVaultType = nil
         self.buyWithTokenVaultType = nil
         self.stakeAccountingKeyStoragePath = /storage/stakeAccountingKey
+        self.stakeAccountingKeyPublicPath = /public/stakeAccountingKey
         self.rewardRate = 0
         self.optionMinter <- nil
         self.stakeVault <- nil
