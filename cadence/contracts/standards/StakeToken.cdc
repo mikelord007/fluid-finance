@@ -1,21 +1,17 @@
-import FungibleToken from "../standards/FungibleToken.cdc"
-import PayoutToken from "../standards/PayoutToken.cdc"
-import BuyWithToken from "../standards/BuyWithToken.cdc"
-import MetadataViews from "../standards/MetadataViews.cdc"
-import FungibleTokenMetadataViews from "../standards/FungibleTokenMetadataViews.cdc"
+import FungibleToken from "./FungibleToken.cdc"
+import MetadataViews from "./MetadataViews.cdc"
+import FungibleTokenMetadataViews from "./FungibleTokenMetadataViews.cdc"
 
-pub contract OptionToken: FungibleToken {
+pub contract StakeToken: FungibleToken {
 
-    /// Total supply of OptionTokens in existence
+    /// Total supply of StakeTokens in existence
     pub var totalSupply: UFix64
-
-    pub var buyWithVault: @BuyWithToken.Vault
 
     /// Storage and Public Paths
     pub let VaultStoragePath: StoragePath
     pub let VaultPublicPath: PublicPath
     pub let ReceiverPublicPath: PublicPath
-    pub let MinterStoragePath: StoragePath
+    pub let AdminStoragePath: StoragePath
 
     /// The event that is emitted when the contract is created
     pub event TokensInitialized(initialSupply: UFix64)
@@ -38,9 +34,6 @@ pub contract OptionToken: FungibleToken {
     /// The event that is emitted when a new burner resource is created
     pub event BurnerCreated()
 
-    pub resource interface oTokenReadData {
-        pub var expiryTimeStamp: UFix64
-    }
     /// Each user stores an instance of only the Vault in their storage
     /// The functions in the Vault and governed by the pre and post conditions
     /// in FungibleToken when they are called.
@@ -51,53 +44,14 @@ pub contract OptionToken: FungibleToken {
     /// out of thin air. A special Minter resource needs to be defined to mint
     /// new tokens.
     ///
-    pub resource Vault: FungibleToken.Provider, FungibleToken.Receiver, FungibleToken.Balance, MetadataViews.Resolver, oTokenReadData {
+    pub resource Vault: FungibleToken.Provider, FungibleToken.Receiver, FungibleToken.Balance, MetadataViews.Resolver {
 
         /// The total balance of this vault
         pub var balance: UFix64
 
-        pub var payoutVault: @PayoutToken.Vault
-
-        pub var buyWithTokenType: String // buyWith Token Identifier
-        pub var amountOfBuyWith: UFix64
-
-        pub var initialized: Bool
-        pub var expiryTimeStamp: UFix64 // timestamp rounded to days
-
+        /// Initialize the balance at resource creation time
         init(balance: UFix64) {
             self.balance = balance
-            self.payoutVault <- PayoutToken.createEmptyVault()
-            self.expiryTimeStamp = 0.0
-            self.initialized = false
-            self.buyWithTokenType = ""
-            self.amountOfBuyWith = 0.0
-        }
-
-        access(contract) fun initialize(buyWithTokenType: String, amountOfBuyWith: UFix64, expiryTime: UFix64) {
-            pre {
-                !self.initialized : "already initalized"
-            }
-            self.initialized = true
-            self.expiryTimeStamp = expiryTime
-            self.buyWithTokenType = buyWithTokenType
-            self.amountOfBuyWith = amountOfBuyWith
-        }
-
-        access(contract) fun redeemTokens(buyWithVault: @FungibleToken.Vault): @PayoutToken.Vault {
-            pre {
-                buyWithVault.getType().identifier == self.buyWithTokenType : "Wrong Vault Sent"
-                buyWithVault.balance == self.amountOfBuyWith : "Wrong amount"
-            }
-
-            var tempVault <- BuyWithToken.createEmptyVault()
-            tempVault <-> OptionToken.buyWithVault
-            var depositVault <- tempVault
-            depositVault.deposit(from: <- buyWithVault)
-            OptionToken.buyWithVault <-> depositVault
-            destroy depositVault
-
-            let returnVault <- self.payoutVault <- PayoutToken.createEmptyVault()
-            return <- returnVault
         }
 
         /// Function that takes an amount as an argument
@@ -111,18 +65,9 @@ pub contract OptionToken: FungibleToken {
         /// @return The Vault resource containing the withdrawn funds
         ///
         pub fun withdraw(amount: UFix64): @FungibleToken.Vault {
-            post {
-                self.balance == self.payoutVault.balance
-            }
             self.balance = self.balance - amount
             emit TokensWithdrawn(amount: amount, from: self.owner?.address)
-            let vault <-create Vault(balance: amount)
-            let vaultAmountBuyWith = (self.amountOfBuyWith * amount )/ self.balance
-            vault.initialize(buyWithTokenType: self.buyWithTokenType, amountOfBuyWith: vaultAmountBuyWith, expiryTime: self.expiryTimeStamp)
-            vault.payoutVault.deposit(from: <- self.payoutVault.withdraw(amount: amount))
-
-            assert(vault.balance == vault.payoutVault.balance)
-            return <- vault
+            return <-create Vault(balance: amount)
         }
 
         /// Function that takes a Vault object as an argument and adds
@@ -134,19 +79,8 @@ pub contract OptionToken: FungibleToken {
         /// @param from: The Vault resource containing the funds that will be deposited
         ///
         pub fun deposit(from: @FungibleToken.Vault) {
-            post {
-                self.balance == self.payoutVault.balance
-            }
-
-            let vault <- from as! @OptionToken.Vault
-
-            assert(self.buyWithTokenType == vault.buyWithTokenType)
-            assert(self.expiryTimeStamp == vault.expiryTimeStamp)
-                
-            self.balance = self.balance + vault.balance 
-            self.amountOfBuyWith = self.amountOfBuyWith + vault.amountOfBuyWith
-            self.payoutVault.deposit(from: <- vault.payoutVault.withdraw(amount: vault.balance))
-
+            let vault <- from as! @StakeToken.Vault
+            self.balance = self.balance + vault.balance
             emit TokensDeposited(amount: vault.balance, to: self.owner?.address)
             vault.balance = 0.0
             destroy vault
@@ -154,13 +88,11 @@ pub contract OptionToken: FungibleToken {
 
         destroy() {
             if self.balance > 0.0 {
-                OptionToken.totalSupply = OptionToken.totalSupply - self.balance
+                StakeToken.totalSupply = StakeToken.totalSupply - self.balance
             }
-
-            destroy self.payoutVault
         }
 
-        /// The way of getting all the Metadata Views implemented by OptionToken
+        /// The way of getting all the Metadata Views implemented by StakeToken
         ///
         /// @return An array of Types defining the implemented views. This value will be used by
         ///         developers to know which parameter to pass to the resolveView() method.
@@ -174,7 +106,7 @@ pub contract OptionToken: FungibleToken {
             ]
         }
 
-        /// The way of getting a Metadata View out of the OptionToken
+        /// The way of getting a Metadata View out of the StakeToken
         ///
         /// @param view: The Type of the desired view.
         /// @return A structure representing the requested view.
@@ -206,19 +138,19 @@ pub contract OptionToken: FungibleToken {
                     )
                 case Type<FungibleTokenMetadataViews.FTVaultData>():
                     return FungibleTokenMetadataViews.FTVaultData(
-                        storagePath: OptionToken.VaultStoragePath,
-                        receiverPath: OptionToken.ReceiverPublicPath,
-                        metadataPath: OptionToken.VaultPublicPath,
-                        providerPath: /private/OptionTokenVault,
-                        receiverLinkedType: Type<&OptionToken.Vault{FungibleToken.Receiver}>(),
-                        metadataLinkedType: Type<&OptionToken.Vault{FungibleToken.Balance, MetadataViews.Resolver}>(),
-                        providerLinkedType: Type<&OptionToken.Vault{FungibleToken.Provider}>(),
+                        storagePath: StakeToken.VaultStoragePath,
+                        receiverPath: StakeToken.ReceiverPublicPath,
+                        metadataPath: StakeToken.VaultPublicPath,
+                        providerPath: /private/StakeTokenVault,
+                        receiverLinkedType: Type<&StakeToken.Vault{FungibleToken.Receiver}>(),
+                        metadataLinkedType: Type<&StakeToken.Vault{FungibleToken.Balance, MetadataViews.Resolver}>(),
+                        providerLinkedType: Type<&StakeToken.Vault{FungibleToken.Provider}>(),
                         createEmptyVaultFunction: (fun (): @FungibleToken.Vault {
-                            return <-OptionToken.createEmptyVault()
+                            return <-StakeToken.createEmptyVault()
                         })
                     )
                 case Type<FungibleTokenMetadataViews.TotalSupply>():
-                    return FungibleTokenMetadataViews.TotalSupply(totalSupply: OptionToken.totalSupply)
+                    return FungibleTokenMetadataViews.TotalSupply(totalSupply: StakeToken.totalSupply)
             }
             return nil
         }
@@ -232,61 +164,25 @@ pub contract OptionToken: FungibleToken {
     /// @return The new Vault resource
     ///
     pub fun createEmptyVault(): @Vault {
-        panic("not allowed")
+        return <-create Vault(balance: 0.0)
     }
 
-    /// Resource object that token admin accounts can hold to mint new tokens.
-    ///
-    pub resource Minter {
-
-        /// Function that mints new tokens, adds them to the total supply,
-        /// and returns them to the calling context.
-        ///
-        /// @param amount: The quantity of tokens to mint
-        /// @return The Vault resource containing the minted tokens
-        ///
-        pub fun mintTokens(amount: UFix64, payoutVault: @PayoutToken.Vault, buyWithTokenType: String,
-         amountOfBuyWith: UFix64, expiryTime: UFix64): @OptionToken.Vault {
-            pre {
-                amount > 0.0: "Amount minted must be greater than zero"
-                payoutVault.balance == amount : "Incorrect payoutVault Balance"
-            }
-            post {
-                result.balance == result.payoutVault.balance : "Unbalanced Vault"
-            }
-
-            OptionToken.totalSupply = OptionToken.totalSupply + amount
-            emit TokensMinted(amount: amount)
-            let vault <- create Vault(balance: amount)
-            vault.initialize(buyWithTokenType: buyWithTokenType, amountOfBuyWith: amountOfBuyWith, expiryTime: expiryTime)
-            vault.payoutVault.deposit(from: <- payoutVault)      
-            
-            return <- vault
-        }
-    }
-    
-    pub fun redeemPayoutTokens(oToken: @OptionToken.Vault, buyWithVault: @FungibleToken.Vault): @PayoutToken.Vault {
-        pre {
-            getCurrentBlock().timestamp < oToken.expiryTimeStamp : "expired tokens"
-        }
-
-        let returnVault <- oToken.redeemTokens(buyWithVault: <- buyWithVault)
-        destroy oToken
-        return <- returnVault
-    }
-
-    //for demo purposes
-    pub fun createMinter(): @Minter {
-        return <- create Minter()
+    pub fun mintTokens(amount: UFix64): @StakeToken.Vault {
+        StakeToken.totalSupply = StakeToken.totalSupply + amount
+        emit TokensMinted(amount: amount)
+        return <-create Vault(balance: amount)
     }
 
     init() {
-        self.totalSupply = 0.0
-        self.buyWithVault <- BuyWithToken.createEmptyVault()
-        self.VaultStoragePath = /storage/OptionTokenVault
-        self.VaultPublicPath = /public/OptionTokenMetadata
-        self.ReceiverPublicPath = /public/OptionTokenReceiver
-        self.MinterStoragePath = /storage/OptionTokenAdmin
+        self.totalSupply = 1000.0
+        self.VaultStoragePath = /storage/StakeTokenVault
+        self.VaultPublicPath = /public/StakeTokenMetadata
+        self.ReceiverPublicPath = /public/StakeTokenReceiver
+        self.AdminStoragePath = /storage/StakeTokenAdmin
+
+        // Create the Vault with the total supply of tokens and save it in storage.
+        let vault <- create Vault(balance: self.totalSupply)
+        self.account.save(<-vault, to: self.VaultStoragePath)
 
         // Create a public capability to the stored Vault that exposes
         // the `deposit` method through the `Receiver` interface.
@@ -297,7 +193,7 @@ pub contract OptionToken: FungibleToken {
 
         // Create a public capability to the stored Vault that only exposes
         // the `balance` field and the `resolveView` method through the `Balance` interface
-        self.account.link<&OptionToken.Vault{FungibleToken.Balance}>(
+        self.account.link<&StakeToken.Vault{FungibleToken.Balance}>(
             self.VaultPublicPath,
             target: self.VaultStoragePath
         )
@@ -305,5 +201,4 @@ pub contract OptionToken: FungibleToken {
         // Emit an event that shows that the contract was initialized
         emit TokensInitialized(initialSupply: self.totalSupply)
     }
-    
 }

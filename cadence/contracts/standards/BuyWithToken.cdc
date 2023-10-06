@@ -2,9 +2,9 @@ import FungibleToken from "./FungibleToken.cdc"
 import MetadataViews from "./MetadataViews.cdc"
 import FungibleTokenMetadataViews from "./FungibleTokenMetadataViews.cdc"
 
-pub contract ExampleToken: FungibleToken {
+pub contract BuyWithToken: FungibleToken {
 
-    /// Total supply of ExampleTokens in existence
+    /// Total supply of BuyWithTokens in existence
     pub var totalSupply: UFix64
 
     /// Storage and Public Paths
@@ -79,7 +79,7 @@ pub contract ExampleToken: FungibleToken {
         /// @param from: The Vault resource containing the funds that will be deposited
         ///
         pub fun deposit(from: @FungibleToken.Vault) {
-            let vault <- from as! @ExampleToken.Vault
+            let vault <- from as! @BuyWithToken.Vault
             self.balance = self.balance + vault.balance
             emit TokensDeposited(amount: vault.balance, to: self.owner?.address)
             vault.balance = 0.0
@@ -88,11 +88,11 @@ pub contract ExampleToken: FungibleToken {
 
         destroy() {
             if self.balance > 0.0 {
-                ExampleToken.totalSupply = ExampleToken.totalSupply - self.balance
+                BuyWithToken.totalSupply = BuyWithToken.totalSupply - self.balance
             }
         }
 
-        /// The way of getting all the Metadata Views implemented by ExampleToken
+        /// The way of getting all the Metadata Views implemented by BuyWithToken
         ///
         /// @return An array of Types defining the implemented views. This value will be used by
         ///         developers to know which parameter to pass to the resolveView() method.
@@ -106,7 +106,7 @@ pub contract ExampleToken: FungibleToken {
             ]
         }
 
-        /// The way of getting a Metadata View out of the ExampleToken
+        /// The way of getting a Metadata View out of the BuyWithToken
         ///
         /// @param view: The Type of the desired view.
         /// @return A structure representing the requested view.
@@ -138,19 +138,19 @@ pub contract ExampleToken: FungibleToken {
                     )
                 case Type<FungibleTokenMetadataViews.FTVaultData>():
                     return FungibleTokenMetadataViews.FTVaultData(
-                        storagePath: ExampleToken.VaultStoragePath,
-                        receiverPath: ExampleToken.ReceiverPublicPath,
-                        metadataPath: ExampleToken.VaultPublicPath,
-                        providerPath: /private/exampleTokenVault,
-                        receiverLinkedType: Type<&ExampleToken.Vault{FungibleToken.Receiver}>(),
-                        metadataLinkedType: Type<&ExampleToken.Vault{FungibleToken.Balance, MetadataViews.Resolver}>(),
-                        providerLinkedType: Type<&ExampleToken.Vault{FungibleToken.Provider}>(),
+                        storagePath: BuyWithToken.VaultStoragePath,
+                        receiverPath: BuyWithToken.ReceiverPublicPath,
+                        metadataPath: BuyWithToken.VaultPublicPath,
+                        providerPath: /private/BuyWithTokenVault,
+                        receiverLinkedType: Type<&BuyWithToken.Vault{FungibleToken.Receiver}>(),
+                        metadataLinkedType: Type<&BuyWithToken.Vault{FungibleToken.Balance, MetadataViews.Resolver}>(),
+                        providerLinkedType: Type<&BuyWithToken.Vault{FungibleToken.Provider}>(),
                         createEmptyVaultFunction: (fun (): @FungibleToken.Vault {
-                            return <-ExampleToken.createEmptyVault()
+                            return <-BuyWithToken.createEmptyVault()
                         })
                     )
                 case Type<FungibleTokenMetadataViews.TotalSupply>():
-                    return FungibleTokenMetadataViews.TotalSupply(totalSupply: ExampleToken.totalSupply)
+                    return FungibleTokenMetadataViews.TotalSupply(totalSupply: BuyWithToken.totalSupply)
             }
             return nil
         }
@@ -167,18 +167,18 @@ pub contract ExampleToken: FungibleToken {
         return <-create Vault(balance: 0.0)
     }
 
-    pub fun mintTokens(amount: UFix64): @ExampleToken.Vault {
-        ExampleToken.totalSupply = ExampleToken.totalSupply + amount
+    pub fun mintTokens(amount: UFix64): @BuyWithToken.Vault {
+        BuyWithToken.totalSupply = BuyWithToken.totalSupply + amount
         emit TokensMinted(amount: amount)
         return <-create Vault(balance: amount)
     }
 
     init() {
         self.totalSupply = 1000.0
-        self.VaultStoragePath = /storage/exampleTokenVault
-        self.VaultPublicPath = /public/exampleTokenMetadata
-        self.ReceiverPublicPath = /public/exampleTokenReceiver
-        self.AdminStoragePath = /storage/exampleTokenAdmin
+        self.VaultStoragePath = /storage/buyWithTokenVault
+        self.VaultPublicPath = /public/buyWithTokenMetadata
+        self.ReceiverPublicPath = /public/buyWithTokenReceiver
+        self.AdminStoragePath = /storage/buyWithTokenAdmin
 
         // Create the Vault with the total supply of tokens and save it in storage.
         let vault <- create Vault(balance: self.totalSupply)
@@ -193,7 +193,7 @@ pub contract ExampleToken: FungibleToken {
 
         // Create a public capability to the stored Vault that only exposes
         // the `balance` field and the `resolveView` method through the `Balance` interface
-        self.account.link<&ExampleToken.Vault{FungibleToken.Balance}>(
+        self.account.link<&BuyWithToken.Vault{FungibleToken.Balance}>(
             self.VaultPublicPath,
             target: self.VaultStoragePath
         )

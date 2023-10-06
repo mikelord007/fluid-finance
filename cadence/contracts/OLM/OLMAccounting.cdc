@@ -1,5 +1,5 @@
 import FungibleToken from "../standards/FungibleToken.cdc"
-import ExampleToken from "../standards/ExampleToken.cdc"
+import PayoutToken from "../standards/PayoutToken.cdc"
 import OptionToken from "./OptionToken.cdc"
 
 pub contract OLMAccounting {
@@ -40,9 +40,6 @@ pub contract OLMAccounting {
     }
 
     pub resource Administrator {
-        pub fun setRewardRate(newRate: UInt64) {
-            OLMAccounting.rewardRate = newRate
-        }
 
         pub fun initialize(stakedTokenvaultType_: String, payoutTokenVaultType_: String, buyWithTokenVaultType_: String,
          stakedTokenContract_: &FungibleToken, payoutTokenContract_: &FungibleToken, rewardRate_: UInt64,
@@ -60,7 +57,7 @@ pub contract OLMAccounting {
             OLMAccounting.stakeVault <-! tempVault
 
             let tempPayoutVault <- payoutTokenContract_.createEmptyVault()
-            assert(tempPayoutVault.getType().identifier == stakedTokenvaultType_, message: "Wrong Payout Token Vault Type")
+            assert(tempPayoutVault.getType().identifier == payoutTokenVaultType_, message: "Wrong Payout Token Vault Type")
             OLMAccounting.payoutVault <-! tempPayoutVault
         }
     }
@@ -83,7 +80,7 @@ pub contract OLMAccounting {
     pub fun stake(stakeTokenVault: @FungibleToken.Vault): @stakeAccountingKey {
         pre {
             stakeTokenVault.getType().identifier == self.stakedTokenVaultType : "Wrong Vault Sent"
-            stakeTokenVault.balance == 0.0 : "Bruh"
+            stakeTokenVault.balance > 0.0 : "Bruh"
         }
 
         let balance = stakeTokenVault.balance
@@ -123,7 +120,7 @@ pub contract OLMAccounting {
 
         let expiryTimestamp = getCurrentBlock().timestamp + self.timeToExpireOtokens
 
-        let oTokens <- minter.mintTokens(amount: UFix64(rewardAmount), payoutVault: <- (withdrawenVault as! @ExampleToken.Vault),
+        let oTokens <- minter.mintTokens(amount: UFix64(rewardAmount), payoutVault: <- (withdrawenVault as! @PayoutToken.Vault),
         buyWithTokenType: self.buyWithTokenVaultType!, amountOfBuyWith: totalAmount, expiryTime: expiryTimestamp)
 
         self.optionMinter <-! minter
@@ -134,6 +131,10 @@ pub contract OLMAccounting {
 
     pub fun fetchDiscountedPriceFromOracle(type: String): UFix64 {
         return 100.0 // assume call to oracle
+    }
+
+    pub fun createAdmin(): @Administrator {
+        return <- create Administrator()  // for demo purposes, should ideally utilize private capabilities
     }
 
     init() {
@@ -150,9 +151,6 @@ pub contract OLMAccounting {
         self.stakeVault <- nil
         self.payoutVault <- nil
         self.timeToExpireOtokens = 0.0
-
-        let admin <- create Administrator()
-        self.account.save(<-admin, to: self.AdminStoragePath)
     }
 
 }
