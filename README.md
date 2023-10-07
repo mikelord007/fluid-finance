@@ -1,5 +1,57 @@
-### 🌊 **Welcome to Fluid Finance!**
+# 🌊 **Welcome to Fluid Finance!**
 A set of protocols that redefine how current deFi operates 
+
+## 👤 Sample User Flow on Fluid Finance ( try this to simulate txns ) :-
+### L&B User Flow
+
+- setup admin params <br>
+`flow transactions send "cadence\transactions\L&B\setupAdminParams.cdc" --signer "L&B"`
+
+- create new bucket <br>
+`flow transactions send "cadence\transactions\L&B\createNewBucket.cdc" --signer default`
+
+- mint some tokens for yourself <br>
+`flow transactions send "cadence\transactions\standards\mintSomeExampleTokens.cdc" --signer default 1000000.0`
+
+- get your bucketIds for next txn <br>
+`flow scripts execute "cadence\scripts\L&B\fetchAllBuckets.cdc" {default-signers-address}`
+
+- supply tokens to pool <br>
+`flow transactions send "cadence\transactions\L&B\supplyTokensToPool.cdc" --signer default 100.0 {your-bucketId}`
+
+- borrow from the poool <br>
+`flow transactions send "cadence\transactions\L&B\borrowTokensFromPool.cdc" --signer default 70.0 {your-bucketId}`
+
+- repay to pool <br>
+`flow transactions send "cadence\transactions\L&B\repayTokensToPool.cdc" --signer default 70.0 {your-bucketId}`
+
+- unsupply tokens to pool <br>
+`flow transactions send "cadence\transactions\L&B\unsupplyTokensToPool.cdc" --signer default 70.0 {your-bucketId}`
+
+
+### OLM User Flow
+
+
+- setup admin params <br>
+`flow transactions send "cadence\transactions\OLM\setupAdminParams.cdc" --signer OLM`
+
+- mint some buyWith tokens for yourself <br>
+`flow transactions send "cadence\transactions\standards\mintSomeBuyWithTokens.cdc" --signer default 1000000.0`
+
+- mint some staking tokens for yourself <br>
+`flow transactions send "cadence\transactions\standards\mintSomeStakeTokens.cdc" --signer default 1000000.0`
+
+- stake in the contract <br>
+`flow transactions send "cadence\transactions\OLM\stakeTokens.cdc" --signer default 100.0`
+
+- claim oTokens as reward <br>
+`flow transactions send "cadence\transactions\OLM\claimOTokens.cdc" --signer default`
+
+- redeem oTokens for payout Tokens <br>
+`flow transactions send "cadence\transactions\OLM\redeemOTokens.cdc" --signer default`
+
+- unstake your tokens <br>
+`flow transactions send "cadence\transactions\OLM\unstakeTokens.cdc" --signer default`
 
 
 ### 🔨 Getting started
