@@ -1,12 +1,13 @@
 {
 	"contracts": {
+		"BuyWithToken": "cadence/contracts/standards/BuyWithToken.cdc",
 		"ExampleNFT": {
 			"source": "",
 			"aliases": {
 				"emulator": "f8d6e0586b0a20c7"
 			}
 		},
-		"ExampleToken": "cadence/contracts/stakingToken.cdc",
+		"ExampleToken": "cadence/contracts/standards/ExampleToken.cdc",
 		"FUSD": {
 			"source": "",
 			"aliases": {
@@ -26,6 +27,7 @@
 			}
 		},
 		"FungibleTokenMetadataViews": "cadence/contracts/standards/FungibleTokenMetadataViews.cdc",
+		"Lending_Borrow": "cadence/contracts/L\u0026B/L\u0026B.cdc",
 		"MetadataViews": {
 			"source": "cadence/contracts/standards/MetadataViews.cdc",
 			"aliases": {
@@ -50,7 +52,10 @@
 				"emulator": "f8d6e0586b0a20c7"
 			}
 		},
-		"OLMAccounting": "cadence/contracts/OLMAccounting.cdc"
+		"OLMAccounting": "cadence/contracts/OLM/OLMAccounting.cdc",
+		"OptionToken": "cadence/contracts/OLM/OptionToken.cdc",
+		"PayoutToken": "cadence/contracts/standards/PayoutToken.cdc",
+		"StakeToken": "cadence/contracts/standards/StakeToken.cdc"
 	},
 	"networks": {
 		"emulator": "127.0.0.1:3569",
@@ -58,6 +63,14 @@
 		"testnet": "access.devnet.nodes.onflow.org:9000"
 	},
 	"accounts": {
+		"L\u0026B": {
+			"address": "045a1763c93006ca",
+			"key": "6d12eebfef9866c9b6fa92b97c6e705c26a1785b1e7944da701fc545a51d4673"
+		},
+		"OLM": {
+			"address": "120e725050340cab",
+			"key": "6d12eebfef9866c9b6fa92b97c6e705c26a1785b1e7944da701fc545a51d4673"
+		},
 		"default": {
 			"address": "e03daebed8ca0615",
 			"key": "6d12eebfef9866c9b6fa92b97c6e705c26a1785b1e7944da701fc545a51d4673"
@@ -67,18 +80,26 @@
 			"key": "6d12eebfef9866c9b6fa92b97c6e705c26a1785b1e7944da701fc545a51d4673"
 		},
 		"standards": {
-			"address": "120e725050340cab",
+			"address": "f669cb8d41ce0c74",
 			"key": "6d12eebfef9866c9b6fa92b97c6e705c26a1785b1e7944da701fc545a51d4673"
 		}
 	},
 	"deployments": {
 		"emulator": {
-			"default": [
-				"OLMAccounting",
-				"ExampleToken"
+			"L\u0026B": [
+				"Lending_Borrow"
 			],
+			"OLM": [
+				"OLMAccounting",
+				"OptionToken"
+			],
+			"default": [],
 			"standards": [
-				"FungibleTokenMetadataViews"
+				"BuyWithToken",
+				"ExampleToken",
+				"FungibleTokenMetadataViews",
+				"PayoutToken",
+				"StakeToken"
 			]
 		}
 	}

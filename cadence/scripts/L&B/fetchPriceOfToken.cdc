@@ -1,7 +1,7 @@
 import Lending_Borrow from "../../contracts/L&B/L&B.cdc"
 
 
-pub fun main(token: Type): {String: UFix64} {
+pub fun main(token: String): {String: UFix64} {
 
     let borrowedTokens: {String: UFix64} = {}
     

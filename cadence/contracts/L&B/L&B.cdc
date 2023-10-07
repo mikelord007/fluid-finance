@@ -100,7 +100,7 @@ pub contract Lending_Borrow {
             supplyTokenVault.balance >= 0.0 : "Are you joking bruv"
         }
         post {
-            self.supplyTokensLimit[tokenVaultTypeIdentifier]! <= self.totalSupplied(tokenIdentifier: tokenVaultTypeIdentifier) : "supply exceeds limit"
+            self.supplyTokensLimit[tokenVaultTypeIdentifier]! >= self.totalSupplied(tokenIdentifier: tokenVaultTypeIdentifier) : "supply exceeds limit"
         }
 
         let tokenVaultTypeIdentifier = supplyTokenVault.getType().identifier
