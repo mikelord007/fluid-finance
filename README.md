@@ -1,3 +1,6 @@
+### 🌊 **Welcome to Fluid Finance!**
+A set of protocols that redefine how current deFi operates 
+
 ### 👋 Welcome Flow Developer!
 Welcome to your new Flow project. We only provided you with bare minimum to get started, which is the standard Cadence folder structure and a flow.json configuration with standard contracts defined.
 
